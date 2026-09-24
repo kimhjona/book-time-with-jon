@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book Time with Jon</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="hero">
+      <h1>Book Time with Jon</h1>
+      <p class="subtitle">Pick a time. Looking forward to it!</p>
+    </header>
+
+    <form id="booking-form" class="card" novalidate>
+      <section class="step">
+        <h2><span class="step-num">1</span> Pick a time</h2>
+        <p class="hint">Sunday or Tuesday evening, Pacific time.</p>
+        <div id="slot-groups"></div>
+      </section>
+
+      <section class="step">
+        <h2><span class="step-num">2</span> Your details</h2>
+        <label class="field">
+          <span>Name</span>
+          <input type="text" id="name" name="name" placeholder="Your name" autocomplete="name">
+        </label>
+        <label class="field">
+          <span>Email</span>
+          <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email">
+        </label>
+      </section>
+
+      <section class="step">
+        <h2><span class="step-num">3</span> How long</h2>
+        <div class="pills" id="duration-pills" role="group" aria-label="Length">
+          <button type="button" class="pill" data-duration="30">30 min</button>
+          <button type="button" class="pill" data-duration="45">45 min</button>
+          <button type="button" class="pill selected" data-duration="60">60 min</button>
+        </div>
+      </section>
+
+      <section class="step">
+        <h2><span class="step-num">4</span> How we meet</h2>
+        <div class="meet-options" role="group" aria-label="How we meet">
+          <button type="button" class="meet-option selected" data-type="facetime">
+            <span class="meet-title">FaceTime</span>
+            <span class="meet-sub">Jon calls you</span>
+          </button>
+          <button type="button" class="meet-option" data-type="meet">
+            <span class="meet-title">Google Meet</span>
+            <span class="meet-sub">Link in the invite</span>
+          </button>
+        </div>
+      </section>
+
+      <div id="error" class="error" role="alert" hidden></div>
+
+      <button type="submit" id="confirm-btn" class="confirm" disabled>Confirm</button>
+    </form>
+
+    <div id="confirmation" class="card confirmation" hidden>
+      <h2>You&rsquo;re booked!</h2>
+      <p class="slot-line" id="confirmation-slot"></p>
+      <p>Confirmation emails are on the way to you and Jon.</p>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+:root {
+  --bg: #f7f3ec;
+  --card: #ffffff;
+  --text: #33302a;
+  --muted: #7d7466;
+  --line: #e7ddcd;
+  --accent: #a4542c;
+  --accent-dark: #8a4523;
+  --accent-soft: #f5e8da;
+  --error: #b3261e;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.hero { margin-bottom: 20px; }
+
+.hero h1 {
+  margin: 0 0 4px;
+  font-size: 1.9rem;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 18px;
+}
+
+.step { margin-bottom: 26px; }
+.step:last-of-type { margin-bottom: 18px; }
+
+.step h2 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.hint {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.day-group { margin-bottom: 14px; }
+.day-group:last-child { margin-bottom: 0; }
+
+.day-group h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.slot-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.slot-btn,
+.pill,
+.meet-option {
+  border: 1.5px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  min-height: 48px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.slot-btn:hover,
+.pill:hover,
+.meet-option:hover { border-color: var(--accent); }
+
+.slot-btn.selected,
+.pill.selected,
+.meet-option.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.meet-option.selected .meet-sub { color: #f3e2d3; }
+
+.slot-btn:focus-visible,
+.pill:focus-visible,
+.meet-option:focus-visible,
+.confirm:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.field { display: block; margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+
+.field span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--text);
+}
+
+.field input:focus { border-color: var(--accent); outline: none; }
+
+.pills {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.meet-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.meet-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.meet-title { font-weight: 700; }
+
+.meet-sub {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.error {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: #fbeae9;
+  color: var(--error);
+  font-size: 0.95rem;
+}
+
+.confirm {
+  width: 100%;
+  min-height: 54px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.confirm:not(:disabled):hover { background: var(--accent-dark); }
+
+.confirm:disabled {
+  background: #d8cfbe;
+  color: #8d8474;
+  cursor: not-allowed;
+}
+
+.confirmation { text-align: center; }
+
+.confirmation h2 {
+  margin: 0 0 8px;
+  font-size: 1.6rem;
+  color: var(--accent);
+}
+
+.slot-line {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+@media (min-width: 480px) {
+  .wrap { padding-top: 40px; }
+  .card { padding: 28px 26px; }
+}
