@@ -18,6 +18,7 @@ function doGet(e) {
   var p = (e && e.parameter) || {};
   var out = (p.action === 'book') ? bookSlot(p)
           : (p.action === 'availability') ? availability()
+          : (p.action === 'notify') ? notifyBooked(p)
           : { ok: true, service: 'book-time-with-jon' };
   var json = JSON.stringify(out);
   var cb = p.callback || p.jsonp;
@@ -81,6 +82,42 @@ function bookSlot(p) {
     sendInvites: true
   });
 
+  // The calendar event is created before responding so the page stays fast.
+  // Confirmation emails go out via ?action=notify right after.
+  return { ok: true, slot: slotLabel };
+}
+
+// Sends the confirmation emails after the booking. Guarded: only fires when
+// a matching calendar event actually exists, so it cannot be abused to send
+// email on its own.
+function notifyBooked(p) {
+  var name = String(p.name || '').trim();
+  var email = String(p.email || '').trim().toLowerCase();
+  var start = new Date(String(p.start || '').trim());
+  var duration = parseInt(p.duration, 10);
+  var meetingType = String(p.type || 'facetime').toLowerCase();
+
+  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || isNaN(start.getTime())) {
+    return { ok: false };
+  }
+  if (CONFIG.ALLOWED_DURATIONS.indexOf(duration) === -1) return { ok: false };
+  if (meetingType !== 'meet') meetingType = 'facetime';
+
+  var end = new Date(start.getTime() + duration * 60000);
+  var events = CalendarApp.getDefaultCalendar().getEvents(start, end);
+  var found = false;
+  for (var i = 0; i < events.length; i++) {
+    var ev = events[i];
+    if (ev.getTitle() === 'Time with Jon: ' + name &&
+        (ev.getDescription() || '').indexOf(email) !== -1) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) return { ok: false };
+
+  var tz = CONFIG.TIME_ZONE;
+  var slotLabel = Utilities.formatDate(start, tz, "EEEE, MMM d 'at' h:mm a") + ' PT';
   var whereLine = (meetingType === 'meet')
     ? 'Google Meet link will be in the calendar invite.'
     : 'FaceTime. Jon will call you.';
@@ -93,7 +130,7 @@ function bookSlot(p) {
   GmailApp.sendEmail(CONFIG.HOST_EMAIL, 'Booked: Time with Jon, ' + slotLabel, body,
     { cc: email, name: CONFIG.HOST_NAME });
 
-  return { ok: true, slot: slotLabel };
+  return { ok: true };
 }
 
 function fail(message) {

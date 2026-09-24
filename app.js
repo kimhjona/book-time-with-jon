@@ -3,7 +3,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4tNBPKsq9Rwrh5hAws
 
 const TZ = 'America/Los_Angeles';
 const SLOT_HOURS = [18, 19, 20]; // 6, 7, 8 PM PT
-const BOOK_TIMEOUT_MS = 45000;   // booking can cold-start; be patient
+const BOOK_TIMEOUT_MS = 25000;   // event creation only; email follows in the background
 const AVAIL_TIMEOUT_MS = 25000;
 
 // ---------- Pacific-time helpers (DST-safe, no hardcoded offset) ----------
@@ -212,19 +212,29 @@ async function handleSubmit(e) {
   confirmBtn.textContent = 'Booking...';
 
   try {
+    const guestName = nameInput.value.trim();
+    const guestEmail = emailInput.value.trim();
     const data = await jsonp('book', {
-      name: nameInput.value.trim(),
-      email: emailInput.value.trim(),
+      name: guestName,
+      email: guestEmail,
       start: selectedSlot.iso,
       duration: String(duration),
       type: meetType
     }, BOOK_TIMEOUT_MS);
 
     if (data && data.ok) {
-      confirmationSlot.textContent = data.slot || '';
+      confirmationSlot.textContent = (data.slot || '') + ' (' + duration + ' min)';
       form.hidden = true;
       confirmation.hidden = false;
       window.scrollTo(0, 0);
+      // Confirmation emails go out in the background; do not block the page.
+      jsonp('notify', {
+        name: guestName,
+        email: guestEmail,
+        start: selectedSlot.iso,
+        duration: String(duration),
+        type: meetType
+      }, AVAIL_TIMEOUT_MS).catch(() => {});
     } else {
       showError((data && data.error) || 'Something went wrong. Try again.');
       confirmBtn.disabled = false;
