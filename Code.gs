@@ -16,7 +16,9 @@ var CONFIG = {
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
-  var out = (p.action === 'book') ? bookSlot(p) : { ok: true, service: 'book-time-with-jon' };
+  var out = (p.action === 'book') ? bookSlot(p)
+          : (p.action === 'availability') ? availability()
+          : { ok: true, service: 'book-time-with-jon' };
   var json = JSON.stringify(out);
   var cb = p.callback || p.jsonp;
   if (cb && /^[A-Za-z_$][\w$]*$/.test(cb)) {
@@ -96,4 +98,48 @@ function bookSlot(p) {
 
 function fail(message) {
   return { ok: false, error: message };
+}
+
+// Epoch millis (UTC) of taken candidate slots, so the page can hide them.
+function availability() {
+  var tz = CONFIG.TIME_ZONE;
+  var now = new Date();
+  var cal = CalendarApp.getDefaultCalendar();
+  var taken = [];
+  for (var d = 1; d <= CONFIG.MAX_DAYS_OUT; d++) {
+    var probe = new Date(now.getTime() + d * 24 * 60 * 60000);
+    var dayNum = parseInt(Utilities.formatDate(probe, tz, 'u'), 10);
+    if (CONFIG.ALLOWED_DAYS.indexOf(dayNum) === -1) continue;
+    var y = parseInt(Utilities.formatDate(probe, tz, 'yyyy'), 10);
+    var m = parseInt(Utilities.formatDate(probe, tz, 'MM'), 10);
+    var dd = parseInt(Utilities.formatDate(probe, tz, 'dd'), 10);
+    for (var i = 0; i < CONFIG.ALLOWED_START_HOURS.length; i++) {
+      var start = ptInstant(y, m, dd, CONFIG.ALLOWED_START_HOURS[i], 0, tz);
+      if (!start || start <= now) continue;
+      // Use the longest allowed slot as the probe window so a 60-minute
+      // booking hides the following hour, matching bookSlot's check.
+      var end = new Date(start.getTime() + 60 * 60000);
+      if (cal.getEvents(start, end).length > 0) {
+        taken.push(start.getTime());
+      }
+    }
+  }
+  return { ok: true, taken: taken };
+}
+
+// Build a Date for a Pacific wall-clock time, verified by round trip.
+function ptInstant(y, m, d, hour, minute, tz) {
+  var guess = Date.UTC(y, m - 1, d, hour, minute, 0);
+  var offStr = Utilities.formatDate(new Date(guess), tz, 'Z'); // e.g. -0700
+  var sign = offStr.charAt(0) === '-' ? -1 : 1;
+  var offMin = sign * (parseInt(offStr.substr(1, 2), 10) * 60 +
+                       parseInt(offStr.substr(3, 2), 10));
+  var t = new Date(guess - offMin * 60000);
+  var expect = y + pad2(m) + pad2(d) + pad2(hour) + pad2(minute);
+  if (Utilities.formatDate(t, tz, 'yyyyMMddHHmm') !== expect) return null;
+  return t;
+}
+
+function pad2(n) {
+  return (n < 10 ? '0' : '') + n;
 }
