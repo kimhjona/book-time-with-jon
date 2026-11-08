@@ -2,7 +2,13 @@
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4tNBPKsq9Rwrh5hAwsFupy8OXth0E2ifczo4Fdx485rnrYj1GO-sJVA4l1bZDoaS5/exec';
 
 const TZ = 'America/Los_Angeles';
-const SLOT_HOURS = [18, 19, 20]; // 6, 7, 8 PM PT
+// Fixed offered days for this week only (Pacific wall clock).
+// Sunday Nov 8, 2026: 1, 2, 3, 4 and 7 PM. Tuesday Nov 10, 2026: 6, 7 and 8 PM.
+// The backend (Code.gs SPECIAL_SLOTS) must offer exactly these same slots.
+const FIXED_DAYS = [
+  { year: 2026, month: 11, day: 8, hours: [13, 14, 15, 16, 19] },
+  { year: 2026, month: 11, day: 10, hours: [18, 19, 20] }
+];
 const BOOK_TIMEOUT_MS = 25000;   // event creation only; email follows in the background
 const AVAIL_TIMEOUT_MS = 25000;
 
@@ -57,16 +63,6 @@ function formatISOWithOffset(instant) {
 }
 
 // ---------- Slot computation ----------
-
-// The nearest upcoming weekday strictly after today, within the next 7 days.
-function nextWeekday(weekday) {
-  const now = new Date();
-  for (let d = 1; d <= 7; d++) {
-    const dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
-    if (dt.getDay() === weekday) return dt;
-  }
-  return null;
-}
 
 const dayFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric'
@@ -128,10 +124,9 @@ function renderSlots(takenEpochs) {
   const taken = new Set(takenEpochs || []);
   let shown = 0;
 
-  [0, 2].forEach(weekday => { // Sunday, Tuesday
-    const date = nextWeekday(weekday);
-    if (!date) return;
-    const free = SLOT_HOURS
+  FIXED_DAYS.forEach(fixed => {
+    const date = new Date(fixed.year, fixed.month - 1, fixed.day);
+    const free = fixed.hours
       .map(hour => slotFor(date, hour))
       .filter(slot => !taken.has(slot.epoch));
     if (free.length === 0) return; // day fully booked: do not show it

@@ -1,18 +1,39 @@
-/* Book Time with Jon - booking backend.
+/* Book Time with Jon - booking backend. Version 3, 2026-11-08.
    Deploy as a Web App: "Execute as" = Me, "Who has access" = Anyone.
    The public page calls: GET ?action=book&name=..&email=..&start=..&duration=..&type=..&callback=..
-   `start` must be ISO 8601 with a numeric UTC offset, e.g. 2026-09-27T18:00:00-07:00. */
+   `start` must be ISO 8601 with a numeric UTC offset, e.g. 2026-11-08T13:00:00-08:00.
+   Deployed exec URL (unchanged across versions):
+   https://script.google.com/macros/s/AKfycby4tNBPKsq9Rwrh5hAwsFupy8OXth0E2ifczo4Fdx485rnrYj1GO-sJVA4l1bZDoaS5/exec
+   Apps Script project in Drive: "Book Time with Jon",
+   scriptId 15ob9sVQgFNBADdn44qLXoCUSRT7jgbdxvGq1G8VRVGNHomp2KvzfBMmy
+   To deploy: paste this file into the Apps Script editor, then
+   Deploy > New deployment (or Manage deployments > edit) as a new version.
+   The exec URL stays the same. */
 
 var CONFIG = {
   HOST_EMAIL: 'kimhjona@gmail.com',
   HOST_NAME: 'Jon Kim',
   TIME_ZONE: 'America/Los_Angeles',
   ALLOWED_DAYS: [7, 2],            // ISO day numbers: 7 = Sunday, 2 = Tuesday
-  ALLOWED_START_HOURS: [18, 19, 20], // 6, 7, 8 PM PT
+  ALLOWED_START_HOURS: [18, 19, 20], // 6, 7, 8 PM PT (regular recurring slots)
   ALLOWED_DURATIONS: [30, 45, 60],
   MAX_DAYS_OUT: 7,
   LATEST_END_MINUTES: 21 * 60      // bookings must end by 9:00 PM PT
 };
+
+// One-off offered slots for the week of Nov 8, 2026 (Pacific wall clock).
+// Sunday Nov 8: 1, 2, 3, 4 and 7 PM. Tuesday Nov 10: 6, 7 and 8 PM.
+// These are in addition to the regular Sunday/Tuesday 6-8 PM rule.
+var SPECIAL_SLOTS = [
+  { y: 2026, m: 11, d: 8,  h: 13 },
+  { y: 2026, m: 11, d: 8,  h: 14 },
+  { y: 2026, m: 11, d: 8,  h: 15 },
+  { y: 2026, m: 11, d: 8,  h: 16 },
+  { y: 2026, m: 11, d: 8,  h: 19 },
+  { y: 2026, m: 11, d: 10, h: 18 },
+  { y: 2026, m: 11, d: 10, h: 19 },
+  { y: 2026, m: 11, d: 10, h: 20 }
+];
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -27,6 +48,50 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+function specialSlotInstants(tz) {
+  var out = [];
+  for (var i = 0; i < SPECIAL_SLOTS.length; i++) {
+    var s = SPECIAL_SLOTS[i];
+    var t = ptInstant(s.y, s.m, s.d, s.h, 0, tz);
+    if (t) out.push(t);
+  }
+  return out;
+}
+
+function isSpecialSlot(start, tz) {
+  var specials = specialSlotInstants(tz);
+  for (var i = 0; i < specials.length; i++) {
+    if (specials[i].getTime() === start.getTime()) return true;
+  }
+  return false;
+}
+
+// Every candidate slot the page may offer: the special one-off slots plus
+// the regular Sunday/Tuesday 6-8 PM slots for today through 7 days out.
+function candidateSlots(tz, now) {
+  var slots = [];
+  var seen = {};
+  function add(t) {
+    if (!t || t <= now) return;
+    var key = String(t.getTime());
+    if (!seen[key]) { seen[key] = true; slots.push(t); }
+  }
+  var specials = specialSlotInstants(tz);
+  for (var i = 0; i < specials.length; i++) add(specials[i]);
+  for (var d = 0; d <= CONFIG.MAX_DAYS_OUT; d++) {
+    var probe = new Date(now.getTime() + d * 24 * 60 * 60000);
+    var dayNum = parseInt(Utilities.formatDate(probe, tz, 'u'), 10);
+    if (CONFIG.ALLOWED_DAYS.indexOf(dayNum) === -1) continue;
+    var y = parseInt(Utilities.formatDate(probe, tz, 'yyyy'), 10);
+    var m = parseInt(Utilities.formatDate(probe, tz, 'MM'), 10);
+    var dd = parseInt(Utilities.formatDate(probe, tz, 'dd'), 10);
+    for (var j = 0; j < CONFIG.ALLOWED_START_HOURS.length; j++) {
+      add(ptInstant(y, m, dd, CONFIG.ALLOWED_START_HOURS[j], 0, tz));
+    }
+  }
+  return slots;
 }
 
 function bookSlot(p) {
@@ -54,9 +119,11 @@ function bookSlot(p) {
   var now = new Date();
   var maxDate = new Date(now.getTime() + CONFIG.MAX_DAYS_OUT * 24 * 60 * 60000);
 
-  if (CONFIG.ALLOWED_DAYS.indexOf(dayNum) === -1 ||
-      CONFIG.ALLOWED_START_HOURS.indexOf(hour) === -1) {
-    return fail('Bookings are only open Sunday and Tuesday, 6:00-8:00 PM PT.');
+  var isSpecial = isSpecialSlot(start, tz);
+  var isRegular = CONFIG.ALLOWED_DAYS.indexOf(dayNum) !== -1 &&
+                  CONFIG.ALLOWED_START_HOURS.indexOf(hour) !== -1;
+  if (!isSpecial && !isRegular) {
+    return fail('Bookings are only open Sunday and Tuesday, 6:00-8:00 PM PT, plus Sunday Nov 8 at 1, 2, 3 and 4 PM PT.');
   }
   if (start <= now || start > maxDate) {
     return fail('Please pick a slot within the next 7 days.');
@@ -66,7 +133,7 @@ function bookSlot(p) {
   }
 
   var cal = CalendarApp.getDefaultCalendar();
-  if (cal.getEvents(start, end).length > 0) {
+  if (hasNonAllDayConflict(cal, start, end)) {
     return fail('That slot was just taken. Please pick another time.');
   }
 
@@ -137,27 +204,41 @@ function fail(message) {
   return { ok: false, error: message };
 }
 
+// True if a real (non-all-day) event overlaps [start, end). All-day events
+// like birthdays and holidays are ignored on purpose: a whole-day block
+// should not swallow the evening slots.
+function hasNonAllDayConflict(cal, start, end) {
+  var events = cal.getEvents(start, end);
+  for (var i = 0; i < events.length; i++) {
+    if (!events[i].isAllDayEvent()) return true;
+  }
+  return false;
+}
+
 // Epoch millis (UTC) of taken candidate slots, so the page can hide them.
+// Uses a single calendar query for the whole week, then checks overlaps
+// locally, so the page loads fast.
 function availability() {
   var tz = CONFIG.TIME_ZONE;
   var now = new Date();
+  var weekEnd = new Date(now.getTime() + CONFIG.MAX_DAYS_OUT * 24 * 60 * 60000);
   var cal = CalendarApp.getDefaultCalendar();
+  var events = cal.getEvents(now, weekEnd); // one call, not one per slot
+
+  var slots = candidateSlots(tz, now);
+
   var taken = [];
-  for (var d = 1; d <= CONFIG.MAX_DAYS_OUT; d++) {
-    var probe = new Date(now.getTime() + d * 24 * 60 * 60000);
-    var dayNum = parseInt(Utilities.formatDate(probe, tz, 'u'), 10);
-    if (CONFIG.ALLOWED_DAYS.indexOf(dayNum) === -1) continue;
-    var y = parseInt(Utilities.formatDate(probe, tz, 'yyyy'), 10);
-    var m = parseInt(Utilities.formatDate(probe, tz, 'MM'), 10);
-    var dd = parseInt(Utilities.formatDate(probe, tz, 'dd'), 10);
-    for (var i = 0; i < CONFIG.ALLOWED_START_HOURS.length; i++) {
-      var start = ptInstant(y, m, dd, CONFIG.ALLOWED_START_HOURS[i], 0, tz);
-      if (!start || start <= now) continue;
-      // Use the longest allowed slot as the probe window so a 60-minute
-      // booking hides the following hour, matching bookSlot's check.
-      var end = new Date(start.getTime() + 60 * 60000);
-      if (cal.getEvents(start, end).length > 0) {
+  for (var s = 0; s < slots.length; s++) {
+    var start = slots[s];
+    // Use the longest allowed slot as the probe window so a 60-minute
+    // booking hides the following hour, matching bookSlot's check.
+    var end = new Date(start.getTime() + 60 * 60000);
+    for (var j = 0; j < events.length; j++) {
+      var ev = events[j];
+      // All-day events are skipped: they should not swallow evening slots.
+      if (!ev.isAllDayEvent() && ev.getStartTime() < end && ev.getEndTime() > start) {
         taken.push(start.getTime());
+        break;
       }
     }
   }
